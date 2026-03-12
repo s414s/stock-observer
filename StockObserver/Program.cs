@@ -1,5 +1,6 @@
 
 using Akka.Actor;
+using Akka.Routing;
 using StockObserver.Actors;
 using StockObserver.Workers;
 
@@ -17,19 +18,20 @@ public class Program
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
 
-        builder.Services.AddHostedService<WebsocketClient>();
-
         builder.Services.AddSingleton(provider =>
         {
             var system = ActorSystem.Create("stock-observer-system");
+
             return system;
         });
 
         builder.Services.AddSingleton<IActorRef>(provider =>
         {
             var system = provider.GetRequiredService<ActorSystem>();
-            return system.ActorOf(Props.Create(() => new TradeActor()), "trade-actor");
+            return system.ActorOf(Props.Create(() => new SymbolRouterActor()), "symbol-router");
         });
+
+        builder.Services.AddHostedService<WebsocketClient>();
 
         var app = builder.Build();
 
@@ -59,6 +61,13 @@ public class Program
             return forecast;
         })
         .WithName("GetWeatherForecast");
+
+        var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+        lifetime.ApplicationStopping.Register(() =>
+        {
+            var actorSystem = app.Services.GetRequiredService<ActorSystem>();
+            actorSystem.Terminate().GetAwaiter().GetResult();
+        });
 
         app.Run();
     }

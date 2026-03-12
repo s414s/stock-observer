@@ -10,12 +10,12 @@ namespace StockObserver.Workers;
 public class WebsocketClient : BackgroundService
 {
     private readonly ILogger<WebsocketClient> _logger;
-    private readonly IActorRef _tradeActor;
+    private readonly IActorRef _router;
 
-    public WebsocketClient(ILogger<WebsocketClient> logger, IActorRef tradeActor)
+    public WebsocketClient(ILogger<WebsocketClient> logger, IActorRef router)
     {
         _logger = logger;
-        _tradeActor = tradeActor;
+        _router = router;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -45,10 +45,12 @@ public class WebsocketClient : BackgroundService
                 var trade = new TradeReceived(
                     dto.Data.Symbol,
                     decimal.Parse(dto.Data.Price), 
-                    decimal.Parse(dto.Data.Quantity));
+                    decimal.Parse(dto.Data.Quantity),
+                    dto.Data.TradeTime,
+                    dto.Data.TradeId);
 
                 //_tradeActor.Tell("Akka.NET actor started");
-                _tradeActor.Tell(trade);
+                _router.Tell(trade);
                 //_logger.LogInformation("{Symbol} \t {Price} \t {Time}", dto.Data.Symbol, dto.Data.Price,dto.Data.EventTime);
             }
         }
@@ -60,16 +62,16 @@ public class WebsocketClient : BackgroundService
 public record TradeStreamDto
 {
     [JsonPropertyName("stream")]
-    public string Stream { get; init; } = default!;
+    public required string Stream { get; init; }
 
     [JsonPropertyName("data")]
-    public TradeDataDto Data { get; init; } = default!;
+    public required TradeDataDto Data { get; init; }
 }
 
 public record TradeDataDto
 {
     [JsonPropertyName("e")]
-    public string EventType { get; init; } = default!;
+    public required string EventType { get; init; } 
 
     [JsonPropertyName("E")]
     public long EventTime { get; init; }
@@ -84,13 +86,13 @@ public record TradeDataDto
     public long TradeId { get; init; }
 
     [JsonPropertyName("p")]
-    public string Price { get; init; } = default!;
+    public required string Price { get; init; } 
 
     [JsonPropertyName("q")]
-    public string Quantity { get; init; } = default!;
+    public required string Quantity { get; init; } 
 
     [JsonPropertyName("X")]
-    public string OrderType { get; init; } = default!;
+    public required string OrderType { get; init; } 
 
     [JsonPropertyName("m")]
     public bool IsBuyerMarketMaker { get; init; }
