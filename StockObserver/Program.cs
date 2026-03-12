@@ -1,4 +1,6 @@
 
+using Akka.Actor;
+using StockObserver.Actors;
 using StockObserver.Workers;
 
 namespace StockObserver;
@@ -16,6 +18,18 @@ public class Program
         builder.Services.AddOpenApi();
 
         builder.Services.AddHostedService<WebsocketClient>();
+
+        builder.Services.AddSingleton(provider =>
+        {
+            var system = ActorSystem.Create("stock-observer-system");
+            return system;
+        });
+
+        builder.Services.AddSingleton<IActorRef>(provider =>
+        {
+            var system = provider.GetRequiredService<ActorSystem>();
+            return system.ActorOf(Props.Create(() => new TradeActor()), "trade-actor");
+        });
 
         var app = builder.Build();
 

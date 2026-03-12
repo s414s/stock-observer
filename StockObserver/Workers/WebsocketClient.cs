@@ -1,4 +1,6 @@
-﻿using System.Net.WebSockets;
+﻿using Akka.Actor;
+using StockObserver.Actors;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -8,10 +10,12 @@ namespace StockObserver.Workers;
 public class WebsocketClient : BackgroundService
 {
     private readonly ILogger<WebsocketClient> _logger;
+    private readonly IActorRef _tradeActor;
 
-    public WebsocketClient(ILogger<WebsocketClient> logger)
+    public WebsocketClient(ILogger<WebsocketClient> logger, IActorRef tradeActor)
     {
         _logger = logger;
+        _tradeActor = tradeActor;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,7 +42,14 @@ public class WebsocketClient : BackgroundService
             var dto = JsonSerializer.Deserialize<TradeStreamDto>(payload);
             if(dto is not null)
             {
-                _logger.LogInformation("{Symbol} \t {Price} \t {Time}", dto.Data.Symbol, dto.Data.Price,dto.Data.EventTime);
+                var trade = new TradeReceived(
+                    dto.Data.Symbol,
+                    decimal.Parse(dto.Data.Price), 
+                    decimal.Parse(dto.Data.Quantity));
+
+                //_tradeActor.Tell("Akka.NET actor started");
+                _tradeActor.Tell(trade);
+                //_logger.LogInformation("{Symbol} \t {Price} \t {Time}", dto.Data.Symbol, dto.Data.Price,dto.Data.EventTime);
             }
         }
 
